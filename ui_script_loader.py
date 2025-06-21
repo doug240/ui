@@ -19,7 +19,7 @@ EXCLUDED_FILES = {
     "ui_core_logic.py",
     "ui_script_loader.py",
     "context_manager.py",
-    "tree_utils.py",  # Added here to exclude this file from plugins
+    "tree_utils.py",  # Excluded files that are not plugins
 }
 
 logger = logging.getLogger(__name__)
@@ -73,21 +73,11 @@ def find_plugin_files(root_dir, recursive=True):
             break
     return files
 
-def has_register_plugin(filepath):
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
-        return re.search(r"def\s+register_plugin\s*\(", content) is not None
-    except Exception as e:
-        logger.warning(f"Failed to check register_plugin in {filepath}: {e}")
-        return False
-
 async def maybe_await(obj):
     if asyncio.iscoroutine(obj):
         return await obj
     return obj
 
-# === FIXED: Safer and clearer UI resolver ===
 async def resolve_plugin_ui(ui_candidate):
     if asyncio.iscoroutine(ui_candidate):
         return await ui_candidate
@@ -124,7 +114,6 @@ async def load_plugin_module(path):
 
 async def initialize_plugin(mod, context, path, title):
     start_time = time.time()
-    plugin_obj = None
     version = getattr(mod, "__version__", None)
     requires = getattr(mod, "__requires__", None)
 
@@ -259,13 +248,14 @@ async def get_canvas_plugins_ui(context=None):
                     gr.Markdown(description)
                     if plugin_ui:
                         try:
-                            if hasattr(plugin_ui, "render"):
-                                plugin_ui.render()
-                            elif isinstance(plugin_ui, (gr.Blocks, gr.Tabs)):
-                                plugin_ui.render()
+                            # Do NOT call render(), just add component
+                            if isinstance(plugin_ui, (gr.Blocks, gr.Tabs)):
+                                # Already a container, just add it
+                                plugin_ui
                             elif callable(plugin_ui):
                                 plugin_ui()
                             else:
+                                # If UI is a single component
                                 pass
                         except Exception as e:
                             gr.Markdown(f"\u26a0\ufe0f Failed to render UI: {e}")
